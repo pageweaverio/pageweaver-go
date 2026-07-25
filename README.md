@@ -104,6 +104,38 @@ Three things change, and two are invisible in the produced document:
 It cannot be combined with an image format, a PDF open-password, a digital signature, or a `url`
 render, and it adds roughly 200ms plus 25ms per page.
 
+
+### Accessible PDF/UA
+
+```go
+doc, _ := pw.Documents.CreateAndWait(ctx, map[string]any{
+    "templateId": "tmpl_invoice",
+    "payload":    map[string]any{"number": "INV-001"},
+    "output":     map[string]any{"pdfUa": "1"}, // "1" | "none"
+}, pageweaver.WaitOptions{})
+fmt.Println(doc["accessibility"]) // map[standard:PDF/UA-1 conformant:true ...]
+
+report, _ := pw.Documents.Accessibility(ctx, doc["id"].(string)) // every rule, with its ISO clause
+```
+
+`"1"` is the only level (PDF/UA-2 needs PDF 2.0, which the renderer does not emit). Send `"none"` to
+opt out of a template that defaults to accessible output.
+
+**Conformance depends on your markup, not only on asking for it.** Your template must set a language
+on `<html>`, have a title, give every image real alt text (an empty `alt` is not accepted, use a CSS
+background for decoration), label inline SVG with `role="img"` + `aria-label`, keep headings in order
+starting at `<h1>`, and use header cells in tables. The mechanical parts are handled for you: the role
+map, link descriptions, the document language, marking running headers and footers as artifacts, and
+the conformance declaration.
+
+A non-conformant document is a **failed** document by default, so anything you receive with the claim
+has been checked by the veraPDF reference validator. Use `"conformance": "attempt"` while adjusting a
+template to get the document anyway with the violations listed. A large-print variant is the same
+template and payload with `options.page.scale`, validated the same way.
+
+Cannot be combined with a watermark, a PDF open-password, a digital signature, PDF/A, an image
+format, or a `url` render.
+
 ## Other resources
 
 ```go

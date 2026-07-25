@@ -94,6 +94,12 @@ func (s *DocumentsService) Verify(ctx context.Context, id string) (Document, err
 	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/verify", nil, nil, nil, false)
 }
 
+// Accessibility fetches a document's PDF/UA-1 conformance report: the validator's verdict, every
+// failed rule with its ISO 14289-1 clause, and what the pipeline adjusted to make it conformant.
+func (s *DocumentsService) Accessibility(ctx context.Context, id string) (Document, error) {
+	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/accessibility", nil, nil, nil, false)
+}
+
 // List returns one page of the document history, newest first. Use the response nextCursor to page.
 func (s *DocumentsService) List(ctx context.Context, params ListParams) (Document, error) {
 	q := url.Values{}
