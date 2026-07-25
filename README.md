@@ -133,8 +133,9 @@ has been checked by the veraPDF reference validator. Use `"conformance": "attemp
 template to get the document anyway with the violations listed. A large-print variant is the same
 template and payload with `options.page.scale`, validated the same way.
 
-Cannot be combined with a watermark, a PDF open-password, a digital signature, PDF/A, an image
-format, or a `url` render.
+Works alongside a digital signature: the conformance check runs on the signed document, so the
+verdict covers the file you receive. Cannot be combined with a watermark, a PDF open-password,
+PDF/A, an image format, or a `url` render.
 
 ## Other resources
 
