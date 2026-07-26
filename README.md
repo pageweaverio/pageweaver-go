@@ -101,7 +101,8 @@ Three things change, and two are invisible in the produced document:
   copied. A PDF/A document is therefore **not** a machine-readability guarantee.
 - **`Author` is not written**, because PDF/A cannot record it conformantly.
 
-It cannot be combined with an image format, a PDF open-password, a digital signature, or a `url`
+A digital signature works alongside it: the signature is applied after the archival conversion and
+the result still validates. It cannot be combined with an image format, a PDF open-password, or a `url`
 render, and it adds roughly 200ms plus 25ms per page.
 
 
