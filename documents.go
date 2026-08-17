@@ -75,8 +75,16 @@ type SyncResult struct {
 }
 
 // Create makes a document from a template (with a validated payload) or from inline HTML. Pass an
-// idempotencyKey (or "") to safely retry. Returns 202 immediately with the id and status.
+// idempotencyKey (or "") to safely retry. body may set "name" (a human-readable label) and
+// "publicAlias" (true to publish a public /d/:alias link — requires the publicAlias plan capability;
+// the minted link comes back as the result's alias.token). body["localization"]["direction"] sets
+// the base text direction: "auto" (default) follows the locale, so an Arabic or Hebrew locale
+// produces a right-to-left document with nothing else set; "ltr"/"rtl" override that derivation.
+// Returns 202 immediately with the id and status.
 func (s *DocumentsService) Create(ctx context.Context, body map[string]any, idempotencyKey string) (Document, error) {
+	if err := requireObjectBody(body, "body"); err != nil {
+		return nil, err
+	}
 	var headers map[string]string
 	if idempotencyKey != "" {
 		headers = map[string]string{"idempotency-key": idempotencyKey}
@@ -86,12 +94,93 @@ func (s *DocumentsService) Create(ctx context.Context, body map[string]any, idem
 
 // Get fetches the current state of a document. When status is "done" it carries a download block.
 func (s *DocumentsService) Get(ctx context.Context, id string) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
 	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id), nil, nil, nil, false)
 }
 
 // Verify fetches a document's integrity proof (content hash, hash-chain position, chainVerified).
 func (s *DocumentsService) Verify(ctx context.Context, id string) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
 	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/verify", nil, nil, nil, false)
+}
+
+// Trust fetches a deterministic, agent-facing trust manifest for one document: the schema/template
+// pin, the compiled artifact hash, the content hash + hash-chain position, and the signature status,
+// in a single shape meant to be read (or diffed) programmatically rather than assembled from Get and
+// Verify.
+func (s *DocumentsService) Trust(ctx context.Context, id string) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/trust", nil, nil, nil, false)
+}
+
+// Diff computes a causal diff between this document and against: whether the payload, the pinned
+// template version, or the per-render options changed, plus a page-count delta and whether the two
+// content hashes are identical. Never renders or meters. Returns a "not_comparable_*" classification
+// (not an error) when the two documents don't share a common template lineage.
+func (s *DocumentsService) Diff(ctx context.Context, id, against string) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	if _, err := requireID(against, "against"); err != nil {
+		return nil, err
+	}
+	q := url.Values{}
+	q.Set("against", against)
+	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/diff", q, nil, nil, false)
+}
+
+// AppendVersion issues a new version under this document's lineage (append, not replace): validates
+// payload against the pinned template/schema, renders it as a new document, and fires a
+// document.superseded webhook on the prior head. Only valid for a template-pinned document (an
+// inline or url render has no lineage to append to — use Regenerate instead). Requires a plan with
+// document versioning. Returns 202.
+func (s *DocumentsService) AppendVersion(ctx context.Context, id string, body map[string]any) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	if err := requireObjectBody(body, "body"); err != nil {
+		return nil, err
+	}
+	return s.client.do(ctx, http.MethodPost, "/v1/documents/"+url.PathEscape(id)+"/versions", nil, body, nil, false)
+}
+
+// Versions lists this document's own version sequence (newest first): the lineage AppendVersion
+// builds.
+func (s *DocumentsService) Versions(ctx context.Context, id string) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/versions", nil, nil, nil, false)
+}
+
+// Version fetches one immutable pinned version (by 1-based seq) from this document's lineage.
+func (s *DocumentsService) Version(ctx context.Context, id string, seq int) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	if err := requirePositiveInt(seq, "seq"); err != nil {
+		return nil, err
+	}
+	path := fmt.Sprintf("/v1/documents/%s/versions/%d", url.PathEscape(id), seq)
+	return s.client.do(ctx, http.MethodGet, path, nil, nil, nil, false)
+}
+
+// Representations lists every artifact (PDF, e-invoice XML sidecar, JSON data twin, ...) produced
+// for one version of this document. Defaults to the version id names; pass a nonzero version to
+// inspect an older one.
+func (s *DocumentsService) Representations(ctx context.Context, id string, version int) (Document, error) {
+	if _, err := requireID(id, "id"); err != nil {
+		return nil, err
+	}
+	q := url.Values{}
+	setQueryInt(q, "version", version)
+	return s.client.do(ctx, http.MethodGet, "/v1/documents/"+url.PathEscape(id)+"/representations", q, nil, nil, false)
 }
 
 // Accessibility fetches a document's PDF/UA-1 conformance report: the validator's verdict, every

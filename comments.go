@@ -47,7 +47,10 @@ func (s *CommentsService) Update(ctx context.Context, id string, body map[string
 	return s.client.do(ctx, http.MethodPatch, "/v1/comments/"+url.PathEscape(id), nil, body, nil, false)
 }
 
-// Reply posts a reply on a thread. Returns 201.
+// Reply posts a reply on a thread. body may set "parentMessageId" to nest this reply under an
+// existing message in the thread (omit for a top-level reply; the message must belong to this
+// thread). The returned CommentMessage carries "parentMessageId" back (null at the top level).
+// Returns 201.
 func (s *CommentsService) Reply(ctx context.Context, id string, body map[string]any) (Document, error) {
 	return s.client.do(ctx, http.MethodPost, "/v1/comments/"+url.PathEscape(id)+"/messages", nil, body, nil, false)
 }

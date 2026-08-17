@@ -14,7 +14,10 @@ type DeploymentsService struct {
 }
 
 // Plan plans a deployment: send the manifest text + the contents of every file it names + the
-// target environment. Returns 202 with the plan. Pass an idempotencyKey (or "") to dedupe.
+// target environment. body may set "gitRepo" (as "owner/name") naming the repository the manifest
+// came from, for provenance only — the portal links a deployment's commit to the repo that produced
+// it instead of guessing from the account's Git connections. Returns 202 with the plan. Pass an
+// idempotencyKey (or "") to dedupe.
 func (s *DeploymentsService) Plan(ctx context.Context, body map[string]any, idempotencyKey string) (Document, error) {
 	var headers map[string]string
 	if idempotencyKey != "" {

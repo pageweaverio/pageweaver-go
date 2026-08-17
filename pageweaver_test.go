@@ -51,9 +51,57 @@ func TestServicesWired(t *testing.T) {
 	if c.Deployments == nil {
 		t.Fatal("Deployments service nil")
 	}
+	if c.ObjectTypes == nil {
+		t.Fatal("ObjectTypes service nil")
+	}
+	if c.Objects == nil {
+		t.Fatal("Objects service nil")
+	}
+	if c.RelationshipTypes == nil {
+		t.Fatal("RelationshipTypes service nil")
+	}
+	if c.Search == nil {
+		t.Fatal("Search service nil")
+	}
+	if c.WorkflowDefinitions == nil {
+		t.Fatal("WorkflowDefinitions service nil")
+	}
+	if c.FormTemplates == nil {
+		t.Fatal("FormTemplates service nil")
+	}
+	if c.Intake == nil {
+		t.Fatal("Intake service nil")
+	}
+	if c.Intake.Sessions == nil {
+		t.Fatal("Intake.Sessions service nil")
+	}
+	if c.ErrorCodes == nil {
+		t.Fatal("ErrorCodes service nil")
+	}
+	if c.Events == nil {
+		t.Fatal("Events service nil")
+	}
 	// Every service should reference the same client.
-	if c.Documents.client != c || c.Templates.Proposals.client != c {
+	if c.Documents.client != c || c.Templates.Proposals.client != c || c.Objects.client != c {
 		t.Fatal("services not backed by the constructing client")
+	}
+}
+
+func TestNewClientRetryDefaults(t *testing.T) {
+	c := NewClient("k")
+	if c.MaxRetries != DefaultMaxRetries {
+		t.Fatalf("expected default max retries %d, got %d", DefaultMaxRetries, c.MaxRetries)
+	}
+	if c.RetryBaseDelay != DefaultRetryBaseDelay {
+		t.Fatalf("expected default retry base delay, got %v", c.RetryBaseDelay)
+	}
+	if c.RetryMaxDelay != DefaultRetryMaxDelay {
+		t.Fatalf("expected default retry max delay, got %v", c.RetryMaxDelay)
+	}
+
+	c2 := NewClient("k", WithMaxRetries(0), WithRetryBaseDelay(10*time.Millisecond), WithRetryMaxDelay(50*time.Millisecond))
+	if c2.MaxRetries != 0 {
+		t.Fatalf("expected overridden max retries 0, got %d", c2.MaxRetries)
 	}
 }
 
